@@ -2,9 +2,11 @@ class LogStashLogger < ::Logger
   
   attr_reader :client
   
-  LOGSTASH_EVENT_FIELDS = %w(@timestamp @version).freeze
+  LOGSTASH_EVENT_FIELDS = %w(@timestamp @tags @type @source @fields @message).freeze
+  HOST = ::Socket.gethostname
   
-  def initialize(host, port, socket_type=:udp)
+  def initialize(host, port, socket_type=:udp, debug=false)
+    @debug = debug
     super(::LogStashLogger::Socket.new(host, port, socket_type))
   end
   
@@ -13,8 +15,14 @@ class LogStashLogger < ::Logger
     if severity < @level
       return true
     end
-    if message.nil? and block_given?
-      message = yield
+    progname ||= @progname
+    if message.nil?
+      if block_given?
+        message = yield
+      else
+        message = progname
+        progname = @progname
+      end
     end
     @logdev.write(
       format_message(format_severity(severity), LogStash::Time.now, progname, message))
@@ -26,22 +34,33 @@ class LogStashLogger < ::Logger
     if data.is_a?(String) && data[0] == '{'
       data = (JSON.parse(message) rescue nil) || message
     end
-
+    
     event = case data
     when LogStash::Event
-      data.clone
+      data
     when Hash
       event_data = {
-        "@timestamp" => time,
-        "@version" => 1
+        "@tags" => [],
+        "@fields" => {},
+        "@timestamp" => time
       }
-      event_data.merge!(data)
+      LOGSTASH_EVENT_FIELDS.each do |field_name|
+        if field_data = data.delete(field_name)
+          event_data[field_name] = field_data
+        end
+      end
+      event_data["@fields"].merge!(data)
       LogStash::Event.new(event_data)
     when String
-      LogStash::Event.new("message" => data, "@timestamp" => time, '@version' => 1)
+      LogStash::Event.new("@message" => data, "@timestamp" => time)
     end
 
     event['severity'] ||= severity
+    if event.source == 'unknown'
+      event["@source"] = HOST
+    end
+
+    puts event.message if @debug
     event
   end
 end
