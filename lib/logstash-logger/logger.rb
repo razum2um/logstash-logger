@@ -60,6 +60,10 @@ class LogStashLogger < ::Logger
       event["@source"] = HOST
     end
 
+    if @formatter && @formatter.is_a?(Proc) && @formatter.arity == 1
+      @formatter.call(event)
+    end
+
     puts event.message if @debug
     event
   end
