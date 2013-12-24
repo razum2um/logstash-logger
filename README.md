@@ -1,7 +1,7 @@
 # LogStashLogger [![Build Status](https://travis-ci.org/dwbutler/logstash-logger.png?branch=master)](https://travis-ci.org/dwbutler/logstash-logger)
 
 This gem implements a subclass of Ruby's Logger class that logs directly to [logstash](http://logstash.net).
-It writes to a logstash listener over a TCP connection, in logstash JSON format. This is an improvement over
+It writes to a logstash listener over a UDP (default) or TCP connection, in logstash JSON format. This is an improvement over
 writing to a file or syslog since logstash can receive the structured data directly.
 
 ## Features
@@ -44,6 +44,20 @@ udp_logger = LogStashLogger.new('localhost', 5228, :udp)
 tcp_logger = LogStashLogger.new('localhost', 5229, :tcp)
 ```
 
+## Logstash configuration
+
+To configure Logstash to correctly parse the event, you can create a JSON filter to point to the *message* portion:
+
+```ruby
+filter {
+  json {
+    source => "message"
+  }
+}
+```
+
+For more information on Filtering, check out the official Logstash docs.
+
 ## Rails integration
 
 Add the following to your config/environments/production.rb:
@@ -72,15 +86,21 @@ For a more detailed discussion of UDP vs TCP, I recommend reading this article: 
 
 Verified to work with:
 
-* Ruby 1.9.3
-* Ruby 2.0.0
+* MRI Ruby 1.9.3
+* MRI Ruby 2.0.0
 * JRuby 1.7+ (1.9 mode)
 
-Ruby 1.8.7 is not supported because LogStash::Event is not compatible with Ruby 1.8.7. This might change in the future.
+Ruby 1.8.7 is not supported because LogStash::Event is not compatible with Ruby 1.8.7. This will probably not change.
 
 The specs don't pass in Rubinius yet, but the logger does work.
 
-## Breaking change in version 0.3+
+## Breaking changes
+
+### Version 0.4+
+Logstash::Event decided to go ahead and break the existing JSON format starting in version 1.2+. If you're using this version, you'll need to install
+LogStashLogger version 0.4+. This is not backwards compatible with the old LogStash::Event v1.1.5.
+
+### Version 0.3+
 Earlier versions of this gem (<= 0.2.1) only implemented a TCP connection. Newer versions (>= 0.3) also implement UDP, and use that as the new default.
 Please be aware if you are using the default constructor and still require TCP, you should add an additional argument:
 

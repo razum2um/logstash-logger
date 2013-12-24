@@ -2,7 +2,7 @@ class LogStashLogger < ::Logger
   
   attr_reader :client
   
-  LOGSTASH_EVENT_FIELDS = %w(@timestamp @tags @type @source @fields @message).freeze
+  LOGSTASH_EVENT_FIELDS = %w(@timestamp @tags @type @source @fields message).freeze
   HOST = ::Socket.gethostname
   
   def initialize(host, port, socket_type=:udp, debug=false)
@@ -25,7 +25,7 @@ class LogStashLogger < ::Logger
       end
     end
     @logdev.write(
-      format_message(format_severity(severity), LogStash::Time.now, progname, message))
+      format_message(format_severity(severity), Time.now, progname, message))
     true
   end
   
@@ -52,19 +52,20 @@ class LogStashLogger < ::Logger
       event_data["@fields"].merge!(data)
       LogStash::Event.new(event_data)
     when String
-      LogStash::Event.new("@message" => data, "@timestamp" => time)
+      LogStash::Event.new("message" => data, "@timestamp" => time)
     end
 
     event['severity'] ||= severity
-    if event.source == 'unknown'
-      event["@source"] = HOST
+    #event.type = progname
+    if event['source'] == 'unknown'
+      event['source'] = HOST
     end
 
     if @formatter && @formatter.is_a?(Proc) && @formatter.arity == 1
       @formatter.call(event)
     end
 
-    puts event.message if @debug
+    puts event.inspect if @debug
     event
   end
 end
