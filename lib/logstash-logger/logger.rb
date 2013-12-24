@@ -39,18 +39,7 @@ class LogStashLogger < ::Logger
     when LogStash::Event
       data
     when Hash
-      event_data = {
-        "@tags" => [],
-        "@fields" => {},
-        "@timestamp" => time
-      }
-      LOGSTASH_EVENT_FIELDS.each do |field_name|
-        if field_data = data.delete(field_name)
-          event_data[field_name] = field_data
-        end
-      end
-      event_data["@fields"].merge!(data)
-      LogStash::Event.new(event_data)
+      LogStash::Event.new(data.dup)
     when String
       LogStash::Event.new("message" => data, "@timestamp" => time)
     end
@@ -65,7 +54,7 @@ class LogStashLogger < ::Logger
       @formatter.call(event)
     end
 
-    puts event.inspect if @debug
+    puts event.to_hash if @debug
     event
   end
 end
